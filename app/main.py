@@ -7,7 +7,7 @@ from app.agent import agent_graph
 
 app = FastAPI(title="DnyanAI Agent Gateway API")
 
-# Setup CORS policies so widgets can easily talk to your backend
+# Setup open CORS policies so your frontend website widget can call it
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -18,7 +18,7 @@ app.add_middleware(
 
 class ChatRequest(BaseModel):
     message: str
-    history: list[dict] = [] # Structure format: [{"role": "user"/"assistant", "content": "text"}]
+    history: list[dict] = []
 
 @app.post("/chat")
 async def chat_endpoint(payload: ChatRequest):
@@ -32,7 +32,6 @@ async def chat_endpoint(payload: ChatRequest):
                 
         input_messages.append(HumanMessage(content=payload.message))
         
-        # Execute Graph Loop Lifecycle
         output_state = await agent_graph.ainvoke({"messages": input_messages})
         final_reply = output_state["messages"][-1].content
         
@@ -43,4 +42,5 @@ async def chat_endpoint(payload: ChatRequest):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)
+    # Enforce standard production port mapping targeted by Hugging Face Spaces
+    uvicorn.run("app.main:app", host="0.0.0.0", port=7860, reload=False)

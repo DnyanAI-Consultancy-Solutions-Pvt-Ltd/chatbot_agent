@@ -13,10 +13,12 @@ from langgraph.prebuilt import ToolNode
 
 load_dotenv()
 
-# Initialize local embeddings and vector database
+# Force HuggingFace to download embedding weights to /tmp instead of read-only root directories
+os.environ["HF_HOME"] = "/tmp/.cache"
+
+# Initialize local embeddings and point vector store path to /tmp/database
 embeddings = HuggingFaceEmbeddings(model_name="BAAI/bge-small-en-v1.5")
-vectorstore = Chroma(persist_directory="./database", embedding_function=embeddings)
-# Open app/agent.py and update this line:
+vectorstore = Chroma(persist_directory="/tmp/database", embedding_function=embeddings)
 retriever = vectorstore.as_retriever(search_kwargs={"k": 5})
 
 @tool
@@ -31,7 +33,7 @@ tool_node = ToolNode(tools)
 class AgentState(TypedDict):
     messages: Annotated[list[BaseMessage], add_messages]
 
-# Bind tools directly to the Groq LLM instance
+# Hooking up stable Groq model engine
 model = ChatGroq(model="llama-3.3-70b-versatile", temperature=0.1).bind_tools(tools)
 
 SYSTEM_PROMPT = SystemMessage(
@@ -53,7 +55,6 @@ def should_continue(state: AgentState) -> Literal["tools", "__end__"]:
         return "tools"
     return "__end__"
 
-# Graph configuration loop
 workflow = StateGraph(AgentState)
 workflow.add_node("agent", call_model)
 workflow.add_node("tools", tool_node)
